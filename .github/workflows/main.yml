@@ -1,0 +1,36 @@
+name: Qualititifier
+on:
+  push:
+  pull_request:
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php:
+          - "8.0"
+          - "8.1"
+    name: PHPStan analyze and PHPUnit tests on ${{ matrix.php }}
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@2.15.0
+        with:
+          php-version: ${{ matrix.php }}
+
+      - name: Restore composer cache
+        uses: actions/cache@v2
+        with:
+          path: ~/.cache/composer
+          key: php-${{ matrix.php }}-composer-${{ hashFiles('**/composer.json') }}
+          restore-keys: php-${{ matrix.php }}-composer-
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction --ignore-platform-reqs
+
+      - name: Run PHPStan
+        run: composer run analyze
+
+      - name: Run PHPUnit
+        run: composer run phpunit

@@ -1,0 +1,9 @@
+name: AsyncPM
+description: Async PMMP programming primitives
+version: 1.0.0
+api:
+  - 4.0.0
+  - 5.0.0
+
+main: vezdehod\asyncpm\loader\AsyncPMLoader
+src-namespace-prefix: vezdehod\asyncpm

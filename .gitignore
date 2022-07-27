@@ -1,0 +1,10 @@
+# JetBrains IDE
+*.iml
+.idea/
+
+# Composer dependencies
+vendor/
+composer.lock
+
+# PHPUnit
+.phpunit.result.cache

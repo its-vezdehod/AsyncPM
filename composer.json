@@ -1,0 +1,33 @@
+{
+  "name": "its-vezdehod/asyncpm",
+  "description": "Primitives for async development for PHP (PMMP primary)",
+  "minimum-stability": "stable",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "its-vezdehod"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "vezdehod\\asyncpm\\": "src/"
+    }
+  },
+  "require": {
+    "pocketmine/pocketmine-mp": ">=4.6.1"
+  },
+
+  "require-dev": {
+    "phpstan/phpstan": ">=1.8.2",
+    "phpunit/phpunit": ">=9.5.21"
+  },
+
+  "scripts":{
+    "analyze": [
+      "vendor/bin/phpstan analyze"
+    ],
+    "phpunit": [
+      "vendor/bin/phpunit"
+    ]
+  }
+}
