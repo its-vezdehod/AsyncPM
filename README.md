@@ -63,3 +63,35 @@ $promise->then(#[Async] function(Dktapps $dylan): Feature {
     return new Feature("Moder world format support!");
 });
 ```
+
+# AsyncState
+Make sure that you still in valid state easily
+
+```php
+$promise->then(#[Async] function(SomeAPIResponse $response, AsyncState $state) use ($player, $sender, $amount): bool {
+    $state->requires($player->isOnline(...), "Player left the game");
+    $state->requires($sender->isOnline(...), "Sender left the game");
+    
+    $reachDailyLimit = await($this->checkWholeNetworkMoneyLimit($sender));
+    // After this ^ promise awaited your state will be validated
+    if ($reachDailyLimit) {
+        throw new Exception("You reached daily limit for money");
+    }
+    
+    $isSuspicious = await(SuspiciousMoneyTransactionsDetector::detect($sender));
+    // Also, after this ^ promise awaited your state will be validated    
+    // ...
+        
+    return await($this->transferMoney($sender, $player, $amount));
+})->onCompletion(function(?bool $value, ?Throwable $err) use ($sender, $player) {
+    if (!($sender instanceof Player && $sender->isOnline())) {
+        return;
+    }
+    if ($err !== null) {
+        $sender->sendMessage("Error: {$err->getMessage()}");    
+        return;
+    }
+    // Handle...
+});
+
+```

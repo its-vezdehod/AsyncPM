@@ -9,6 +9,7 @@ use Throwable;
 use vezdehod\asyncpm\promise\result\FulfilledPromiseResult;
 use vezdehod\asyncpm\promise\result\IPromiseResult;
 use vezdehod\asyncpm\promise\result\RejectedPromiseResult;
+use vezdehod\asyncpm\promise\state\AsyncState;
 
 // Sorry for this ugly hack D:
 // TODO: autoload for composer, hacky load for PMMP
@@ -29,7 +30,7 @@ class Promise {
 
     /**
      * @template R
-     * @param (Closure(T): (R|Generator<mixed, Promise<mixed>, mixed, R>)) $then
+     * @param (Closure(T, AsyncState<T>=): (R|Generator<mixed, Promise<mixed>, mixed, R>)) $then
      * @return Promise<R>
      */
     public function then(Closure $then): Promise {
@@ -48,7 +49,7 @@ class Promise {
 
     /**
      * @template R
-     * @param (Closure(Throwable): (R|Generator<mixed, Promise<mixed>, mixed, R>)) $catch
+     * @param (Closure(Throwable, AsyncState<T>=): (R|Generator<mixed, Promise<mixed>, mixed, R>)) $catch
      * @return Promise<R>
      */
     public function catch(Closure $catch): Promise {
@@ -68,7 +69,7 @@ class Promise {
     /**
      * @template R
      * @template V
-     * @param (Closure(V): (R|Generator<mixed, Promise<mixed>, mixed, R>)) $next
+     * @param (Closure(V, AsyncState<R>=): (R|Generator<mixed, Promise<mixed>, mixed, R>)) $next
      * @param PromiseResolver<R> $resolver
      * @param V $value
      */
@@ -80,9 +81,9 @@ class Promise {
                 return;
             }
 
-            $value = $next($value);
+            $value = $next($value, $state = new AsyncState($resolver));
             if ($value instanceof Generator) {
-                self::resolveCoroutinePromise($resolver, $value);
+                self::resolveCoroutinePromise($state, $resolver, $value);
                 return;
             }
             $resolver->fulfill($value);

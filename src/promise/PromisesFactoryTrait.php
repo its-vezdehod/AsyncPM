@@ -11,6 +11,9 @@ use RuntimeException;
 use Throwable;
 use vezdehod\asyncpm\promise\result\FulfilledPromiseResult;
 use vezdehod\asyncpm\promise\result\RejectedPromiseResult;
+use vezdehod\asyncpm\promise\state\AsyncState;
+use vezdehod\asyncpm\promise\state\FiberAsyncStateStorage;
+use vezdehod\asyncpm\promise\state\InvalidAsyncStateException;
 use function count;
 use function gettype;
 
@@ -161,20 +164,20 @@ trait PromisesFactoryTrait {
     /**
      * Converts promised coroutine to Promise
      * @template R
-     * @param Generator<mixed, Promise<mixed>, mixed, R>|(Closure(): Generator<mixed, Promise<mixed>, mixed, R>) $generator
+     * @param (Closure(mixed=, AsyncState<R>=): Generator<mixed, Promise<mixed>, mixed, R>) $generator
+     * @param mixed ...$values
      * @return Promise<R>
      */
-    public static function coroutine(Closure|Generator $generator): Promise {
-        if (!($generator instanceof Generator)) {
-            $generator = $generator();
-            if (!($generator instanceof Generator)) {
-                throw new InvalidArgumentException("Closure(): Generator excepted, Closure(): " . gettype($generator) . " provided");
-            }
-
-        }
+    public static function coroutine(Closure $generator, mixed ...$values): Promise {
         $resolver = new PromiseResolver();
+        $state = new AsyncState($resolver);
+        $values[] = $state;
+        $generator = $generator(...$values);
+        if (!($generator instanceof Generator)) {
+            throw new InvalidArgumentException("Closure(): Generator excepted, Closure(): " . gettype($generator) . " provided");
+        }
 
-        self::resolveCoroutinePromise($resolver, $generator);
+        self::resolveCoroutinePromise($state, $resolver, $generator);
 
         return $resolver->promise();
     }
@@ -183,7 +186,7 @@ trait PromisesFactoryTrait {
      * Wraps closure into closure that contains Fiber and returns Promise that will be resolved when Fiber reach end
      *
      * @template R
-     * @param Closure(mixed=): R $asyncable
+     * @param Closure(mixed=, AsyncState<R>=): R $asyncable
      * @return Closure(mixed=): Promise<R>
      */
     public static function wrapAsync(Closure $asyncable): Closure {
@@ -191,9 +194,18 @@ trait PromisesFactoryTrait {
             $resolver = new PromiseResolver();
             $fiber = new Fiber(function () use ($asyncable, $resolver, $values): void { // @phpstan-ignore-line
                 try {
-                    $resolver->fulfill($asyncable(...$values));
+                    FiberAsyncStateStorage::store($state = new AsyncState($resolver));
+                    $values[] = $state;
+                    $v = $asyncable(...$values);
+                    if ($resolver->getResult() === null) {
+                        $resolver->fulfill($v);
+                    }
                 } catch (Throwable $exception) {
-                    $resolver->reject($exception);
+                    if ($resolver->getResult() === null) {
+                        $resolver->reject($exception);
+                    }
+                } finally {
+                    FiberAsyncStateStorage::free();
                 }
             });
 
@@ -211,7 +223,7 @@ trait PromisesFactoryTrait {
      * Immediately calls {@see self::wrapAsync} with provided arguments
      *
      * @template R
-     * @param Closure(mixed=): R $asyncable
+     * @param Closure(mixed=, AsyncState<R>=): R $asyncable
      * @param mixed ...$values
      * @return Promise<R>
      */
@@ -229,16 +241,24 @@ trait PromisesFactoryTrait {
         if ($fiber === null) throw new RuntimeException("await allowed only in async scope");
 
         $result = $awaitable->getResult();
-        if ($result !== null) return match (true) {
-            $result instanceof FulfilledPromiseResult => $result->getValue(),
-            $result instanceof RejectedPromiseResult => throw $result->getReason(),
-        };
+        if ($result !== null) {
+            if (FiberAsyncStateStorage::get()->tryResolve()) {
+                throw new InvalidAsyncStateException("Should be already resolved");
+            }
+            if ($result instanceof RejectedPromiseResult) {
+                throw $result->getReason();
+            }
+
+            return $result->getValue();
+        }
 
         $awaitable->onCompletionResult(function (FulfilledPromiseResult|RejectedPromiseResult $result) use ($fiber) {
-            if ($result instanceof RejectedPromiseResult) {
-                $fiber->throw($result->getReason()); // @phpstan-ignore-line
-            } else {
-                $fiber->resume($result->getValue()); // @phpstan-ignore-line
+            if (!FiberAsyncStateStorage::get()->tryResolve()) {
+                if ($result instanceof RejectedPromiseResult) {
+                    $fiber->throw($result->getReason()); // @phpstan-ignore-line
+                } else {
+                    $fiber->resume($result->getValue()); // @phpstan-ignore-line
+                }
             }
         });
 
@@ -247,27 +267,32 @@ trait PromisesFactoryTrait {
 
     /**
      * @template R
+     * @param AsyncState<R> $state
      * @param PromiseResolver<R> $resolver
      * @param Generator<mixed, Promise<mixed>, mixed, R> $generator
      */
-    private static function resolveCoroutinePromise(PromiseResolver $resolver, Generator $generator): void {
+    private static function resolveCoroutinePromise(AsyncState $state, PromiseResolver $resolver, Generator $generator): void {
         $promise = $generator->current();
         if (!$generator->valid()) {
             $resolver->fulfill($generator->getReturn());
             return;
         }
+
         if (!($promise instanceof self)) {
             throw new InvalidArgumentException("Only promises can be yield'ed!");
         }
 
-        $promise->onCompletionResult(static function (FulfilledPromiseResult|RejectedPromiseResult $result) use ($generator, $resolver) {
+        $promise->onCompletionResult(static function (FulfilledPromiseResult|RejectedPromiseResult $result) use ($state, $generator, $resolver) {
+            if ($state->tryResolve()) {
+                return;
+            }
             try {
                 if ($result instanceof RejectedPromiseResult) {
                     $generator->throw($result->getReason());
                 } else {
                     $generator->send($result->getValue());
                 }
-                self::resolveCoroutinePromise($resolver, $generator);
+                self::resolveCoroutinePromise($state, $resolver, $generator);
             } catch (Throwable $exception) {
                 $resolver->reject($exception);
             }
