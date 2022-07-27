@@ -126,6 +126,9 @@ class AsyncStateTest extends TestCase {
         $this->assertEquals(2, $promise->getResult()->getValue());
     }
 
+    /**
+     * @requires PHP >= 8.1
+     */
     public function testThenAsyncAwait(): void {
         $promise = Promise::fulfilled(1)->then(#[Async] function (int $v, AsyncState $state): int {
             $state->fulfillIf(fn() => true, $v + 1);
