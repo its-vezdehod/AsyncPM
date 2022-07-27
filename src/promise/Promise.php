@@ -7,6 +7,7 @@ use Generator;
 use ReflectionFunction;
 use Throwable;
 use vezdehod\asyncpm\promise\result\FulfilledPromiseResult;
+use vezdehod\asyncpm\promise\result\IPromiseResult;
 use vezdehod\asyncpm\promise\result\RejectedPromiseResult;
 
 // Sorry for this ugly hack D:
@@ -99,7 +100,7 @@ class Promise {
      * @param Closure(T|null, Throwable|null): void $handler
      */
     public function onCompletion(Closure $handler): void {
-        $this->context->onResult(static function(FulfilledPromiseResult|RejectedPromiseResult $result) use ($handler) {
+        $this->context->onResult(static function(IPromiseResult $result) use ($handler) {
             $handler($result instanceof FulfilledPromiseResult ? $result->getValue() : null, $result instanceof RejectedPromiseResult ? $result->getReason() : null);
         });
     }
@@ -107,5 +108,5 @@ class Promise {
     /**
      * @return FulfilledPromiseResult<T>|RejectedPromiseResult|null
      */
-    public function getResult(): FulfilledPromiseResult|RejectedPromiseResult|null { return $this->context->getResult(); }
+    public function getResult(): ?IPromiseResult { return $this->context->getResult(); }
 }

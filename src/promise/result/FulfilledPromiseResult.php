@@ -5,7 +5,7 @@ namespace vezdehod\asyncpm\promise\result;
 /**
  * @template T
  */
-class FulfilledPromiseResult {
+class FulfilledPromiseResult implements IPromiseResult {
     /**
      * @param T $value
      */

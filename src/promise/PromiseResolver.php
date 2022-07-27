@@ -4,6 +4,7 @@ namespace vezdehod\asyncpm\promise;
 
 use Throwable;
 use vezdehod\asyncpm\promise\result\FulfilledPromiseResult;
+use vezdehod\asyncpm\promise\result\IPromiseResult;
 use vezdehod\asyncpm\promise\result\RejectedPromiseResult;
 
 /**
@@ -30,7 +31,7 @@ class PromiseResolver {
     /**
      * @param FulfilledPromiseResult<T>|RejectedPromiseResult $result
      */
-    public function depends(FulfilledPromiseResult|RejectedPromiseResult $result): void {
+    public function depends(IPromiseResult $result): void {
         if ($result instanceof RejectedPromiseResult) {
             $this->reject($result->getReason());
         } else {
@@ -41,7 +42,7 @@ class PromiseResolver {
     /**
      * @return FulfilledPromiseResult<T>|RejectedPromiseResult|null
      */
-    public function getResult(): FulfilledPromiseResult|RejectedPromiseResult|null { return $this->context->getResult(); }
+    public function getResult(): ?IPromiseResult { return $this->context->getResult(); }
 
     /**
      * @return Promise<T>

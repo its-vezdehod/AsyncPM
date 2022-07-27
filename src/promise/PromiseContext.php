@@ -5,6 +5,7 @@ namespace vezdehod\asyncpm\promise;
 use Closure;
 use LogicException;
 use vezdehod\asyncpm\promise\result\FulfilledPromiseResult;
+use vezdehod\asyncpm\promise\result\IPromiseResult;
 use vezdehod\asyncpm\promise\result\RejectedPromiseResult;
 
 /**
@@ -12,14 +13,14 @@ use vezdehod\asyncpm\promise\result\RejectedPromiseResult;
  */
 class PromiseContext {
     /** @var FulfilledPromiseResult<T>|RejectedPromiseResult|null */
-    private FulfilledPromiseResult|RejectedPromiseResult|null $result = null;
+    private ?IPromiseResult $result = null;
     /** @var (Closure(FulfilledPromiseResult<T>|RejectedPromiseResult): void)[] */
     private array $handlers = [];
 
     /**
      * @param FulfilledPromiseResult<T>|RejectedPromiseResult $result
      */
-    public function setResult(FulfilledPromiseResult|RejectedPromiseResult $result): void {
+    public function setResult(IPromiseResult $result): void {
         if ($this->result !== null) throw new LogicException("Promise can not be resolved twice!");
         $this->result = $result;
         foreach ($this->handlers as $handler) {
@@ -31,7 +32,7 @@ class PromiseContext {
     /**
      * @return FulfilledPromiseResult<T>|RejectedPromiseResult|null
      */
-    public function getResult(): FulfilledPromiseResult|RejectedPromiseResult|null { return $this->result; }
+    public function getResult(): ?IPromiseResult { return $this->result; }
 
     /**
      * @param Closure(FulfilledPromiseResult<T>|RejectedPromiseResult): void $handler
