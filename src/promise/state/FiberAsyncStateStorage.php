@@ -21,7 +21,7 @@ class FiberAsyncStateStorage {
      * @param AsyncState<mixed> $state
      */
     public static function store(AsyncState $state): void {
-        $fiber = Fiber::getCurrent();
+        $fiber = Fiber::getCurrent(); // @phpstan-ignore-line
         if ($fiber === null || isset(self::$storage[spl_object_id($fiber)])) {
             throw new RuntimeException("AsyncState must be created one time in fiber!");
         }
@@ -37,7 +37,7 @@ class FiberAsyncStateStorage {
      * @return AsyncState<mixed>
      */
     public static function get(): AsyncState {
-        $fiber = Fiber::getCurrent();
+        $fiber = Fiber::getCurrent(); // @phpstan-ignore-line
         if ($fiber === null || !isset(self::$storage[spl_object_id($fiber)])) {
             throw new RuntimeException("This fiber not contains AsyncState");
         }
@@ -45,7 +45,7 @@ class FiberAsyncStateStorage {
     }
 
     public static function free(): void {
-        $fiber = Fiber::getCurrent();
+        $fiber = Fiber::getCurrent(); // @phpstan-ignore-line
         if ($fiber === null || !isset(self::$storage[spl_object_id($fiber)])) {
             throw new RuntimeException("This fiber not contains AsyncState");
         }
