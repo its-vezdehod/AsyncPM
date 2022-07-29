@@ -193,8 +193,9 @@ trait PromisesFactoryTrait {
         return static function (mixed ...$values) use ($asyncable): Promise {
             $resolver = new PromiseResolver();
             $fiber = new Fiber(function () use ($asyncable, $resolver, $values): void { // @phpstan-ignore-line
+                $fiber = Fiber::getCurrent();
                 try {
-                    FiberAsyncStateStorage::store($state = new AsyncState($resolver));
+                    FiberAsyncStateStorage::store($fiber, $state = new AsyncState($resolver));
                     $values[] = $state;
                     $v = $asyncable(...$values);
                     if ($resolver->getResult() === null) {
@@ -205,7 +206,7 @@ trait PromisesFactoryTrait {
                         $resolver->reject($exception);
                     }
                 } finally {
-                    FiberAsyncStateStorage::free();
+                    FiberAsyncStateStorage::free($fiber);
                 }
             });
 
@@ -242,7 +243,7 @@ trait PromisesFactoryTrait {
 
         $result = $awaitable->getResult();
         if ($result !== null) {
-            if (FiberAsyncStateStorage::get()->tryResolve()) {
+            if (FiberAsyncStateStorage::get($fiber)->tryResolve()) {
                 throw new InvalidAsyncStateException("Should be already resolved");
             }
             if ($result instanceof RejectedPromiseResult) {
@@ -253,7 +254,7 @@ trait PromisesFactoryTrait {
         }
 
         $awaitable->onCompletionResult(function (FulfilledPromiseResult|RejectedPromiseResult $result) use ($fiber) {
-            if (!FiberAsyncStateStorage::get()->tryResolve()) {
+            if (!FiberAsyncStateStorage::get($fiber)->tryResolve()) {
                 if ($result instanceof RejectedPromiseResult) {
                     $fiber->throw($result->getReason()); // @phpstan-ignore-line
                 } else {
