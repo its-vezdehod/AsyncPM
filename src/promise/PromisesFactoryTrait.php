@@ -193,6 +193,7 @@ trait PromisesFactoryTrait {
         return static function (mixed ...$values) use ($asyncable): Promise {
             $resolver = new PromiseResolver();
             $fiber = new Fiber(function () use ($asyncable, $resolver, $values): void { // @phpstan-ignore-line
+                /** @var Fiber $fiber */
                 $fiber = Fiber::getCurrent();
                 try {
                     FiberAsyncStateStorage::store($fiber, $state = new AsyncState($resolver));
